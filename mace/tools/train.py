@@ -11,6 +11,7 @@ from typing import Any, Dict, Optional, Tuple
 
 import numpy as np
 import torch
+import mlflow
 from torch.optim.swa_utils import SWALR, AveragedModel
 from torch.utils.data import DataLoader
 from torch_ema import ExponentialMovingAverage
@@ -55,15 +56,16 @@ def train(
     swa: Optional[SWAContainer] = None,
     ema: Optional[ExponentialMovingAverage] = None,
     max_grad_norm: Optional[float] = 10.0,
-    log_wandb: bool = False,
+    #log_wandb: bool = False,
 ):
     lowest_loss = np.inf
     valid_loss = np.inf
     patience_counter = 0
     swa_start = True
     keep_last = False
-    if log_wandb:
-        import wandb
+    mlflow.start_run()
+    # if log_wandb:
+    #     import wandb
 
     if max_grad_norm is not None:
         logging.info(f"Using gradient clipping with tolerance={max_grad_norm:.3f}")
@@ -181,14 +183,21 @@ def train(
                 logging.info(
                     f"Epoch {epoch}: loss={valid_loss:.4f}, RMSE_E_per_atom={error_e:.1f} meV, RMSE_F={error_f:.1f} meV / A, RMSE_Mu_per_atom={error_mu:.2f} mDebye"
                 )
-            if log_wandb:
-                wandb_log_dict = {
-                    "epoch": epoch,
-                    "valid_loss": valid_loss,
-                    "valid_rmse_e_per_atom": eval_metrics["rmse_e_per_atom"],
-                    "valid_rmse_f": eval_metrics["rmse_f"],
-                }
-                wandb.log(wandb_log_dict)
+            # if log_wandb:
+            #     wandb_log_dict = {
+            #         "epoch": epoch,
+            #         "valid_loss": valid_loss,
+            #         "valid_rmse_e_per_atom": eval_metrics["rmse_e_per_atom"],
+            #         "valid_rmse_f": eval_metrics["rmse_f"],
+            #     }
+            #     wandb.log(wandb_log_dict)
+            mlflow_log_dict = {
+                "valid_loss": valid_loss,
+                "valid_rmse_e_per_atom": eval_metrics["rmse_e_per_atom"],
+                "valid_rmse_f": eval_metrics["rmse_f"],
+            }
+            mlflow.log_params({"epoch": epoch})
+            mlflow.log_metrics(mlflow_log_dict)
             if valid_loss >= lowest_loss:
                 patience_counter += 1
                 if patience_counter >= patience and epoch < swa.start:
@@ -220,6 +229,7 @@ def train(
                     )
                     keep_last = False
         epoch += 1
+        mlflow.end_run()
 
     logging.info("Training complete")
 
