@@ -56,6 +56,7 @@ def train(
     swa: Optional[SWAContainer] = None,
     ema: Optional[ExponentialMovingAverage] = None,
     max_grad_norm: Optional[float] = 10.0,
+    log_data_in_mlflow: bool = True,
     #log_wandb: bool = False,
 ):
     lowest_loss = np.inf
@@ -63,52 +64,62 @@ def train(
     patience_counter = 0
     swa_start = True
     keep_last = False
-    mlflow.start_run()
-    # if log_wandb:
-    #     import wandb
+    with mlflow.start_run():
+        if log_wandb:
+            import wandb
+        if log_data_in_mlflow:
+            import mlflow
 
-    if max_grad_norm is not None:
-        logging.info(f"Using gradient clipping with tolerance={max_grad_norm:.3f}")
-    logging.info("Started training")
-    epoch = start_epoch
-    while epoch < max_num_epochs:
-        # LR scheduler and SWA update
-        if swa is None or epoch < swa.start:
-            if epoch > start_epoch:
-                lr_scheduler.step(
-                    metrics=valid_loss
-                )  # Can break if exponential LR, TODO fix that!
-        else:
-            if swa_start:
-                logging.info("Changing loss based on SWA")
-                lowest_loss = np.inf
-                swa_start = False
-                keep_last = True
-            loss_fn = swa.loss_fn
-            swa.model.update_parameters(model)
-            if epoch > start_epoch:
-                swa.scheduler.step()
+        if max_grad_norm is not None:
+            logging.info(f"Using gradient clipping with tolerance={max_grad_norm:.3f}")
+        logging.info("Started training")
+        epoch = start_epoch
+        while epoch < max_num_epochs:
+            # LR scheduler and SWA update
+            if swa is None or epoch < swa.start:
+                if epoch > start_epoch:
+                    lr_scheduler.step(
+                        metrics=valid_loss
+                    )  # Can break if exponential LR, TODO fix that!
+            else:
+                if swa_start:
+                    logging.info("Changing loss based on SWA")
+                    lowest_loss = np.inf
+                    swa_start = False
+                    keep_last = True
+                loss_fn = swa.loss_fn
+                swa.model.update_parameters(model)
+                if epoch > start_epoch:
+                    swa.scheduler.step()
 
-        # Train
-        for batch in train_loader:
-            _, opt_metrics = take_step(
-                model=model,
-                loss_fn=loss_fn,
-                batch=batch,
-                optimizer=optimizer,
-                ema=ema,
-                output_args=output_args,
-                max_grad_norm=max_grad_norm,
-                device=device,
-            )
-            opt_metrics["mode"] = "opt"
-            opt_metrics["epoch"] = epoch
-            logger.log(opt_metrics)
+            # Train
+            for batch in train_loader:
+                _, opt_metrics = take_step(
+                    model=model,
+                    loss_fn=loss_fn,
+                    batch=batch,
+                    optimizer=optimizer,
+                    ema=ema,
+                    output_args=output_args,
+                    max_grad_norm=max_grad_norm,
+                    device=device,
+                )
+                opt_metrics["mode"] = "opt"
+                opt_metrics["epoch"] = epoch
+                logger.log(opt_metrics)
 
-        # Validate
-        if epoch % eval_interval == 0:
-            if ema is not None:
-                with ema.average_parameters():
+            # Validate
+            if epoch % eval_interval == 0:
+                if ema is not None:
+                    with ema.average_parameters():
+                        valid_loss, eval_metrics = evaluate(
+                            model=model,
+                            loss_fn=loss_fn,
+                            data_loader=valid_loader,
+                            output_args=output_args,
+                            device=device,
+                        )
+                else:
                     valid_loss, eval_metrics = evaluate(
                         model=model,
                         loss_fn=loss_fn,
@@ -116,121 +127,113 @@ def train(
                         output_args=output_args,
                         device=device,
                     )
-            else:
-                valid_loss, eval_metrics = evaluate(
-                    model=model,
-                    loss_fn=loss_fn,
-                    data_loader=valid_loader,
-                    output_args=output_args,
-                    device=device,
-                )
-            eval_metrics["mode"] = "eval"
-            eval_metrics["epoch"] = epoch
-            logger.log(eval_metrics)
-            if log_errors == "PerAtomRMSE":
-                error_e = eval_metrics["rmse_e_per_atom"] * 1e3
-                error_f = eval_metrics["rmse_f"] * 1e3
-                logging.info(
-                    f"Epoch {epoch}: loss={valid_loss:.4f}, RMSE_E_per_atom={error_e:.1f} meV, RMSE_F={error_f:.1f} meV / A"
-                )
-            elif (
-                log_errors == "PerAtomRMSEstressvirials"
-                and eval_metrics["rmse_stress_per_atom"] is not None
-            ):
-                error_e = eval_metrics["rmse_e_per_atom"] * 1e3
-                error_f = eval_metrics["rmse_f"] * 1e3
-                error_stress = eval_metrics["rmse_stress_per_atom"] * 1e3
-                logging.info(
-                    f"Epoch {epoch}: loss={valid_loss:.4f}, RMSE_E_per_atom={error_e:.1f} meV, RMSE_F={error_f:.1f} meV / A, RMSE_stress_per_atom={error_stress:.1f} meV / A^3"
-                )
-            elif (
-                log_errors == "PerAtomRMSEstressvirials"
-                and eval_metrics["rmse_virials_per_atom"] is not None
-            ):
-                error_e = eval_metrics["rmse_e_per_atom"] * 1e3
-                error_f = eval_metrics["rmse_f"] * 1e3
-                error_virials = eval_metrics["rmse_virials_per_atom"] * 1e3
-                logging.info(
-                    f"Epoch {epoch}: loss={valid_loss:.4f}, RMSE_E_per_atom={error_e:.1f} meV, RMSE_F={error_f:.1f} meV / A, RMSE_virials_per_atom={error_virials:.1f} meV"
-                )
-            elif log_errors == "TotalRMSE":
-                error_e = eval_metrics["rmse_e"] * 1e3
-                error_f = eval_metrics["rmse_f"] * 1e3
-                logging.info(
-                    f"Epoch {epoch}: loss={valid_loss:.4f}, RMSE_E={error_e:.1f} meV, RMSE_F={error_f:.1f} meV / A"
-                )
-            elif log_errors == "PerAtomMAE":
-                error_e = eval_metrics["mae_e_per_atom"] * 1e3
-                error_f = eval_metrics["mae_f"] * 1e3
-                logging.info(
-                    f"Epoch {epoch}: loss={valid_loss:.4f}, MAE_E_per_atom={error_e:.1f} meV, MAE_F={error_f:.1f} meV / A"
-                )
-            elif log_errors == "TotalMAE":
-                error_e = eval_metrics["mae_e"] * 1e3
-                error_f = eval_metrics["mae_f"] * 1e3
-                logging.info(
-                    f"Epoch {epoch}: loss={valid_loss:.4f}, MAE_E={error_e:.1f} meV, MAE_F={error_f:.1f} meV / A"
-                )
-            elif log_errors == "DipoleRMSE":
-                error_mu = eval_metrics["rmse_mu_per_atom"] * 1e3
-                logging.info(
-                    f"Epoch {epoch}: loss={valid_loss:.4f}, RMSE_MU_per_atom={error_mu:.2f} mDebye"
-                )
-            elif log_errors == "EnergyDipoleRMSE":
-                error_e = eval_metrics["rmse_e_per_atom"] * 1e3
-                error_f = eval_metrics["rmse_f"] * 1e3
-                error_mu = eval_metrics["rmse_mu_per_atom"] * 1e3
-                logging.info(
-                    f"Epoch {epoch}: loss={valid_loss:.4f}, RMSE_E_per_atom={error_e:.1f} meV, RMSE_F={error_f:.1f} meV / A, RMSE_Mu_per_atom={error_mu:.2f} mDebye"
-                )
-            # if log_wandb:
-            #     wandb_log_dict = {
-            #         "epoch": epoch,
-            #         "valid_loss": valid_loss,
-            #         "valid_rmse_e_per_atom": eval_metrics["rmse_e_per_atom"],
-            #         "valid_rmse_f": eval_metrics["rmse_f"],
-            #     }
-            #     wandb.log(wandb_log_dict)
-            mlflow_log_dict = {
-                "valid_loss": valid_loss,
-                "valid_rmse_e_per_atom": eval_metrics["rmse_e_per_atom"],
-                "valid_rmse_f": eval_metrics["rmse_f"],
-            }
-            mlflow.log_params({"epoch": epoch})
-            mlflow.log_metrics(mlflow_log_dict)
-            if valid_loss >= lowest_loss:
-                patience_counter += 1
-                if swa is not None:
-                    if patience_counter >= patience and epoch < swa.start:
-                        logging.info(
-                            f"Stopping optimization after {patience_counter} epochs without improvement and starting swa"
-                        )
-                        epoch = swa.start
-                elif patience_counter >= patience:
+                eval_metrics["mode"] = "eval"
+                eval_metrics["epoch"] = epoch
+                logger.log(eval_metrics)
+                if log_errors == "PerAtomRMSE":
+                    error_e = eval_metrics["rmse_e_per_atom"] * 1e3
+                    error_f = eval_metrics["rmse_f"] * 1e3
                     logging.info(
-                        f"Stopping optimization after {patience_counter} epochs without improvement"
+                        f"Epoch {epoch}: loss={valid_loss:.4f}, RMSE_E_per_atom={error_e:.1f} meV, RMSE_F={error_f:.1f} meV / A"
                     )
-                    break
-            else:
-                lowest_loss = valid_loss
-                patience_counter = 0
-                if ema is not None:
-                    with ema.average_parameters():
+                elif (
+                    log_errors == "PerAtomRMSEstressvirials"
+                    and eval_metrics["rmse_stress_per_atom"] is not None
+                ):
+                    error_e = eval_metrics["rmse_e_per_atom"] * 1e3
+                    error_f = eval_metrics["rmse_f"] * 1e3
+                    error_stress = eval_metrics["rmse_stress_per_atom"] * 1e3
+                    logging.info(
+                        f"Epoch {epoch}: loss={valid_loss:.4f}, RMSE_E_per_atom={error_e:.1f} meV, RMSE_F={error_f:.1f} meV / A, RMSE_stress_per_atom={error_stress:.1f} meV / A^3"
+                    )
+                elif (
+                    log_errors == "PerAtomRMSEstressvirials"
+                    and eval_metrics["rmse_virials_per_atom"] is not None
+                ):
+                    error_e = eval_metrics["rmse_e_per_atom"] * 1e3
+                    error_f = eval_metrics["rmse_f"] * 1e3
+                    error_virials = eval_metrics["rmse_virials_per_atom"] * 1e3
+                    logging.info(
+                        f"Epoch {epoch}: loss={valid_loss:.4f}, RMSE_E_per_atom={error_e:.1f} meV, RMSE_F={error_f:.1f} meV / A, RMSE_virials_per_atom={error_virials:.1f} meV"
+                    )
+                elif log_errors == "TotalRMSE":
+                    error_e = eval_metrics["rmse_e"] * 1e3
+                    error_f = eval_metrics["rmse_f"] * 1e3
+                    logging.info(
+                        f"Epoch {epoch}: loss={valid_loss:.4f}, RMSE_E={error_e:.1f} meV, RMSE_F={error_f:.1f} meV / A"
+                    )
+                elif log_errors == "PerAtomMAE":
+                    error_e = eval_metrics["mae_e_per_atom"] * 1e3
+                    error_f = eval_metrics["mae_f"] * 1e3
+                    logging.info(
+                        f"Epoch {epoch}: loss={valid_loss:.4f}, MAE_E_per_atom={error_e:.1f} meV, MAE_F={error_f:.1f} meV / A"
+                    )
+                elif log_errors == "TotalMAE":
+                    error_e = eval_metrics["mae_e"] * 1e3
+                    error_f = eval_metrics["mae_f"] * 1e3
+                    logging.info(
+                        f"Epoch {epoch}: loss={valid_loss:.4f}, MAE_E={error_e:.1f} meV, MAE_F={error_f:.1f} meV / A"
+                    )
+                elif log_errors == "DipoleRMSE":
+                    error_mu = eval_metrics["rmse_mu_per_atom"] * 1e3
+                    logging.info(
+                        f"Epoch {epoch}: loss={valid_loss:.4f}, RMSE_MU_per_atom={error_mu:.2f} mDebye"
+                    )
+                elif log_errors == "EnergyDipoleRMSE":
+                    error_e = eval_metrics["rmse_e_per_atom"] * 1e3
+                    error_f = eval_metrics["rmse_f"] * 1e3
+                    error_mu = eval_metrics["rmse_mu_per_atom"] * 1e3
+                    logging.info(
+                        f"Epoch {epoch}: loss={valid_loss:.4f}, RMSE_E_per_atom={error_e:.1f} meV, RMSE_F={error_f:.1f} meV / A, RMSE_Mu_per_atom={error_mu:.2f} mDebye"
+                    )
+                if log_wandb:
+                    wandb_log_dict = {
+                        "epoch": epoch,
+                        "valid_loss": valid_loss,
+                        "valid_rmse_e_per_atom": eval_metrics["rmse_e_per_atom"],
+                        "valid_rmse_f": eval_metrics["rmse_f"],
+                    }
+                    wandb.log(wandb_log_dict)
+                mlflow_log_dict = {
+                    "valid_loss": valid_loss,
+                    "valid_rmse_e_per_atom": eval_metrics["rmse_e_per_atom"],
+                    "valid_rmse_f": eval_metrics["rmse_f"],
+                }
+                mlflow.log_params({"epoch": epoch})
+                mlflow.log_metrics(mlflow_log_dict)
+                if valid_loss >= lowest_loss:
+                    patience_counter += 1
+                    if swa is not None:
+                        if patience_counter >= patience and epoch < swa.start:
+                            logging.info(
+                                f"Stopping optimization after {patience_counter} epochs without improvement and starting swa"
+                            )
+                            epoch = swa.start
+                    elif patience_counter >= patience:
+                        logging.info(
+                            f"Stopping optimization after {patience_counter} epochs without improvement"
+                        )
+                        break
+                else:
+                    lowest_loss = valid_loss
+                    patience_counter = 0
+                    if ema is not None:
+                        with ema.average_parameters():
+                            checkpoint_handler.save(
+                                state=CheckpointState(model, optimizer, lr_scheduler),
+                                epochs=epoch,
+                                keep_last=keep_last,
+                            )
+                            keep_last = False
+                    else:
                         checkpoint_handler.save(
                             state=CheckpointState(model, optimizer, lr_scheduler),
                             epochs=epoch,
                             keep_last=keep_last,
                         )
                         keep_last = False
-                else:
-                    checkpoint_handler.save(
-                        state=CheckpointState(model, optimizer, lr_scheduler),
-                        epochs=epoch,
-                        keep_last=keep_last,
-                    )
-                    keep_last = False
-        epoch += 1
-        mlflow.end_run()
+            epoch += 1
+        #mlflow.end_run()
 
     logging.info("Training complete")
 
@@ -400,3 +403,54 @@ def evaluate(
     aux["time"] = time.time() - start_time
 
     return avg_loss, aux
+
+# def log_data_in_mlflow(self, tracking_uri='../mlflow/mlruns', update=False):
+#         """
+#         Add data to mlflow server. It checks for existing experiments (basename of the workdir) and runs (model_dir) to avoid logging same runs multiple times
+#         :param tracking_uri: the tracking uri of the mlflow server where all the runs will be stored
+#         :param update: If True it will update the data for the exisiting entries. If False it skips the entry
+#         """
+#         import mlflow
+
+#         from mlflow.tracking.client import MlflowClient
+#         from mlflow.entities import ViewType
+
+#         mlflow.set_tracking_uri(tracking_uri)
+#         gp = self
+#         mlflow.set_experiment(gp.data['system'])
+#         experiment = mlflow.get_experiment_by_name(gp.data['system'])
+
+#         try:
+#             # query = "params.model = 'CNN' and params.layers = '10' and metrics.`prediction accuracy` >= 0.945"
+#             query = "tags.mlflow.runName = '{}'".format(gp.model_dir)
+#             run = MlflowClient().search_runs(
+#                 experiment_ids=experiment.experiment_id,
+#                 filter_string=query,
+#                 run_view_type=ViewType.ACTIVE_ONLY,
+#                 max_results=10,
+#                 #   order_by=["metrics.accuracy DESC"]
+#             )[-1]
+#             run_id = run.info.run_id
+
+#         except:
+#             run_id = None
+
+#         if run_id == None or update:
+#             if update:
+#                 print('mlflow: Updating data for model: {}'.format(
+#                     gp.model_dir))
+#             else:
+#                 print('mlflow: logging data for model: {}'.format(gp.model_dir))
+
+#             with mlflow.start_run(experiment_id=experiment.experiment_id,
+#                                   run_name=gp.model_dir,
+#                                   run_id=run_id):
+#                 info=gp.get_info()
+#                 metric=gp.get_prediction_errors(json_format=True) or {}
+#                 for key in ['state','jobid','runtime']:
+#                     info.pop(key)
+#                 mlflow.log_params(info)
+#                 mlflow.log_metrics(metric)
+#                 mlflow.log_artifacts(os.path.join(gp.workdir, gp.model_dir))
+#         else:
+#             print('mlflow: run exists, to update data set update=True')

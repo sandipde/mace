@@ -19,6 +19,11 @@ import mlflow
 import mace
 from mace import data, modules, tools
 from mace.tools import torch_geometric
+
+import mlflow
+import json
+from mlflow.tracking import MlflowClient
+
 from mace.tools.scripts_utils import (
     LRScheduler,
     create_error_table,
@@ -488,6 +493,27 @@ def main() -> None:
             )
             wandb.run.summary["params"] = args_dict_json
 
+        if args.mlflow:
+            logging.info("Using mlflow for logging")
+            # Convert args to dictionary and serialize as JSON
+            args_dict = vars(args)
+            args_dict_json = json.dumps(args_dict)
+            # Log hyperparameters
+            for key in args.mlflow_log_hypers:
+                mlflow.log_param(key, args_dict[key])
+            # Set the experiment name, entity, and run name
+            mlflow.set_experiment(args.mlflow_project)
+            mlflow.set_tag("entity", args.mlflow_entity)
+            mlflow.set_tag("name", args.mlflow_name)
+            # Log the serialized args dictionary as a parameter
+            mlflow.log_param("params", args_dict_json)
+            # Get the current run ID
+            run_id = mlflow.active_run().info.run_id
+            # Get the MlflowClient to access the run summary
+            client = MlflowClient()
+            # Update the run summary with the params
+            client.update_run_info(run_id, run_name=args.mlflow_name, data={"params": args_dict_json})
+
         tools.train(
             model=model,
             loss_fn=loss_fn,
@@ -507,6 +533,7 @@ def main() -> None:
             ema=ema,
             max_grad_norm=args.clip_grad,
             log_errors=args.error_table,
+            log_data_in_mlflow=args.mlflow,
             #log_wandb=args.wandb,
         )
 
@@ -538,6 +565,7 @@ def main() -> None:
                 model=model,
                 loss_fn=loss_fn,
                 output_args=output_args,
+                log_data_in_mlflow=args.mlflow,
                 #log_wandb=args.wandb,
                 device=device,
             )
