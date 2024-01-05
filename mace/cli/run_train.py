@@ -493,26 +493,26 @@ def main() -> None:
             )
             wandb.run.summary["params"] = args_dict_json
 
-        if args.mlflow:
-            logging.info("Using mlflow for logging")
+        #if args.mlflow:
+        #    logging.info("Using mlflow for logging")
             # Convert args to dictionary and serialize as JSON
-            args_dict = vars(args)
-            args_dict_json = json.dumps(args_dict)
+        #    args_dict = vars(args)
+        #    args_dict_json = json.dumps(args_dict)
             # Log hyperparameters
-            for key in args.mlflow_log_hypers:
-                mlflow.log_param(key, args_dict[key])
+        #   for key in args.mlflow_log_hypers:
+        #        mlflow.log_param(key, args_dict[key])
             # Set the experiment name, entity, and run name
-            mlflow.set_experiment(args.mlflow_project)
-            mlflow.set_tag("entity", args.mlflow_entity)
-            mlflow.set_tag("name", args.mlflow_name)
+        #    mlflow.set_experiment(args.mlflow_project)
+        #    mlflow.set_tag("entity", args.mlflow_entity)
+        #    mlflow.set_tag("name", args.mlflow_name)
             # Log the serialized args dictionary as a parameter
-            mlflow.log_param("params", args_dict_json)
+        #    mlflow.log_param("params", args_dict_json)
             # Get the current run ID
-            run_id = mlflow.active_run().info.run_id
+        #    run_id = mlflow.active_run().info.run_id
             # Get the MlflowClient to access the run summary
-            client = MlflowClient()
+        #   client = MlflowClient()
             # Update the run summary with the params
-            client.update_run_info(run_id, run_name=args.mlflow_name, data={"params": args_dict_json})
+        #   client.update_run_info(run_id, run_name=args.mlflow_name, data={"params": args_dict_json})
 
         tools.train(
             model=model,
