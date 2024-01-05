@@ -490,6 +490,50 @@ def build_default_arg_parser() -> argparse.ArgumentParser:
             "forces_weight",
         ],
     )
+    # options for using MLFlow for experiment tracking
+    # to install see https://wandb.ai
+    parser.add_argument(
+        "--mlflow",
+        help="Use MLFLow for experiment tracking",
+        action="store_true",
+        default=True,
+    )
+    parser.add_argument(
+        "--mlflow_project",
+        help="MLFlow project name",
+        type=str,
+        default="",
+    )
+    parser.add_argument(
+        "--mlflow_entity",
+        help="MLFlow entity name",
+        type=str,
+        default="",
+    )
+    parser.add_argument(
+        "--mlflow_name",
+        help="MLFlow experiment name",
+        type=str,
+        default="",
+    )
+    parser.add_argument(
+        "--mlflow_log_hypers",
+        help="The hyperparameters to log in MLFLow",
+        type=list,
+        default=[
+            "num_channels",
+            "max_L",
+            "correlation",
+            "lr",
+            "swa_lr",
+            "weight_decay",
+            "batch_size",
+            "max_num_epochs",
+            "start_swa",
+            "energy_weight",
+            "forces_weight",
+        ],
+    )
     return parser
 
 
