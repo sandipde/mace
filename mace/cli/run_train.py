@@ -565,7 +565,7 @@ def main() -> None:
             model=model,
             loss_fn=loss_fn,
             output_args=output_args,
-            log_data_in_mlflow=args.mlflow,
+            #log_data_in_mlflow=args.mlflow,
             #log_wandb=args.wandb,
             device=device,
         )
