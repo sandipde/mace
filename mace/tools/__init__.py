@@ -64,4 +64,5 @@ __all__ = [
     "cartesian_to_spherical",
     "voigt_to_matrix",
     "init_wandb",
+    "init_mlflow",
 ]
