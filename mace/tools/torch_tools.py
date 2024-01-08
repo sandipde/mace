@@ -128,3 +128,8 @@ def init_wandb(project: str, entity: str, name: str, config: dict):
     import wandb
 
     wandb.init(project=project, entity=entity, name=name, config=config)
+
+# def init_mlflow(project: str, entity: str, name: str, config: dict):
+#     import mlflow
+
+#     mlflow.init(project=project, entity=entity, name=name, config=config)
