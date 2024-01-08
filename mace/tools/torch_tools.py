@@ -135,4 +135,4 @@ def init_mlflow(project: str, entity: str, name: str, uri: str):
     mlflow.set_experiment(project)
     mlflow.set_tag("entity", entity)
     mlflow.set_tag("name", name)
-    mlflow.set_tracking_uri(uri="./mlruns")
+    mlflow.set_tracking_uri(uri)
