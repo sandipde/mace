@@ -66,9 +66,7 @@ def train(
     keep_last = False
     if log_wandb:
         import wandb
-    if log_mlflow:
-        import mlflow
-
+  
     if max_grad_norm is not None:
         logging.info(f"Using gradient clipping with tolerance={max_grad_norm:.3f}")
     logging.info("Started training")
@@ -195,6 +193,7 @@ def train(
                 wandb.log(wandb_log_dict)
 
             if log_mlflow:
+                import mlflow
                 mlflow_log_dict = {
                     "valid_loss": valid_loss,
                     "valid_rmse_e_per_atom": eval_metrics["rmse_e_per_atom"],
