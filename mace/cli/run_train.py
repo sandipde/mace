@@ -493,23 +493,24 @@ def main() -> None:
 
     if args.mlflow:
         import mlflow
-        with mlflow.start_run():
-            logging.info("Using mlflow for logging")
-            args_dict = vars(args)
-            args_dict_json = json.dumps(args_dict)
-            tools.init_mlflow(
-                project=args.mlflow_project,
-                entity=args.mlflow_entity,
-                name=args.mlflow_name,
-                uri=args.mlflow_uri,
-            )
-            for key in args.mlflow_log_hypers:
-                mlflow.log_param(key, args_dict[key])
-            mlflow.log_param("params", args_dict_json)
-            run_id = mlflow.active_run().info.run_id
-            print(run_id)
-            mlflow.log_param("run_id", run_id)
-
+        #with mlflow.start_run():
+        logging.info("Using mlflow for logging")
+        args_dict = vars(args)
+        args_dict_json = json.dumps(args_dict)
+        client = MlflowClient()
+        run = client.create_run(args.mlflow_project)
+        run_id = mlflow.active_run().info.run_id
+        run = mlflow.start_run(run_id = run_id)
+        # tools.init_mlflow(
+        #     project=,
+        #     entity=args.mlflow_entity,
+        #     name=args.mlflow_name,
+        #     uri=args.mlflow_uri,
+        # )
+        for key in args.mlflow_log_hypers:
+            mlflow.log_param(key, args_dict[key])
+        mlflow.log_param("params", args_dict_json)
+        mlflow.end_run()
 
     tools.train(
         model=model,
