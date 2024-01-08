@@ -495,24 +495,21 @@ def main() -> None:
         import mlflow
         with mlflow.start_run():
             logging.info("Using mlflow for logging")
-            # Convert args to dictionary and serialize as JSON
             args_dict = vars(args)
             args_dict_json = json.dumps(args_dict)
-            # Log hyperparameters
+            tools.init_mlflow(
+                project=args.mlflow_project,
+                entity=args.mlflow_entity,
+                name=args.mlflow_name,
+                uri=args.mlflow_uri,
+            )
             for key in args.mlflow_log_hypers:
                 mlflow.log_param(key, args_dict[key])
-            # Set the experiment name, entity, and run name
-            mlflow.set_experiment(args.mlflow_project)
-            mlflow.set_tag("entity", args.mlflow_entity)
-            mlflow.set_tag("name", args.mlflow_name)
-            # Log the serialized args dictionary as a parameter
             mlflow.log_param("params", args_dict_json)
-            # Get the current run ID
             run_id = mlflow.active_run().info.run_id
-            # Get the MlflowClient to access the run summary
-            client = MlflowClient()
-            # Update the run summary with the params
-            client.update_run_info(run_id, run_name=args.mlflow_name, data={"params": args_dict_json})
+            print(run_id)
+            mlflow.log_param("run_id", run_id)
+
 
     tools.train(
         model=model,

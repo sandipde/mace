@@ -501,19 +501,19 @@ def build_default_arg_parser() -> argparse.ArgumentParser:
         "--mlflow_project",
         help="MLFlow project name",
         type=str,
-        default="",
+        default="mace_test",
     )
     parser.add_argument(
         "--mlflow_entity",
         help="MLFlow entity name",
         type=str,
-        default="",
+        default="test1",
     )
     parser.add_argument(
         "--mlflow_name",
         help="MLFlow experiment name",
         type=str,
-        default="",
+        default="expt1",
     )
     parser.add_argument(
         "--mlflow_log_hypers",
