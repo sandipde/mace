@@ -497,9 +497,12 @@ def main() -> None:
         logging.info("Using mlflow for logging")
         args_dict = vars(args)
         args_dict_json = json.dumps(args_dict)
+
+        mlflow.set_experiment(args.mlflow_project)
+        experiment = mlflow.get_experiment_by_name(args.mlflow_project)
         client = MlflowClient()
-        run = client.create_run(args.mlflow_project)
-        run_id = mlflow.active_run().info.run_id
+        run = client.create_run(experiment.experiment_id)
+        run_id = run.info.run_id
         run = mlflow.start_run(run_id = run_id)
         # tools.init_mlflow(
         #     project=,
