@@ -491,7 +491,6 @@ def build_default_arg_parser() -> argparse.ArgumentParser:
         ],
     )
     # options for using MLFlow for experiment tracking
-    # to install see https://wandb.ai
     parser.add_argument(
         "--mlflow",
         help="Use MLFLow for experiment tracking",

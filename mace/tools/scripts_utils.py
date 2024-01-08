@@ -141,8 +141,6 @@ def create_error_table(
 ) -> PrettyTable:
     if log_wandb:
         import wandb
-    if log_mlflow:
-        import mlflow
     table = PrettyTable()
     if table_type == "TotalRMSE":
         table.field_names = [
@@ -229,7 +227,9 @@ def create_error_table(
                 name + "_final_rel_rmse_f": metrics["rel_rmse_f"],
             }
             wandb.log(wandb_log_dict)
+
         if log_mlflow:
+            import mlflow
             mlflow_log_dict = {
                 name
                 + "_final_rmse_e_per_atom": metrics["rmse_e_per_atom"]
@@ -237,7 +237,8 @@ def create_error_table(
                 name + "_final_rmse_f": metrics["rmse_f"] * 1e3,  # meV / A
                 name + "_final_rel_rmse_f": metrics["rel_rmse_f"],
             }
-            mlflow.log_params(wandb_log_dict)
+            mlflow.log_params(mlflow_log_dict)
+            
         if table_type == "TotalRMSE":
             table.add_row(
                 [

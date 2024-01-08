@@ -129,7 +129,7 @@ def init_wandb(project: str, entity: str, name: str, config: dict):
 
     wandb.init(project=project, entity=entity, name=name, config=config)
 
-def init_mlflow(project: str, entity: str, name: str, config: dict):
-    import mlflow
+# def init_mlflow(project: str, entity: str, name: str, config: dict):
+#     import mlflow
 
-    mlflow.init(project=project, entity=entity, name=name, config=config)
+#     mlflow.init(project=project, entity=entity, name=name, config=config)
