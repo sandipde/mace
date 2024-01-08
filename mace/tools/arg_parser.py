@@ -515,6 +515,14 @@ def build_default_arg_parser() -> argparse.ArgumentParser:
         type=str,
         default="expt1",
     )
+
+    parser.add_argument(
+        "--mlflow_uri",
+        help="MLFlow tracking uri",
+        type=str,
+        default="../mlruns",
+    )
+
     parser.add_argument(
         "--mlflow_log_hypers",
         help="The hyperparameters to log in MLFLow",
