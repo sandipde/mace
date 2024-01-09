@@ -601,7 +601,7 @@ def main() -> None:
     if args.mlflow:
         print(mlflow.active_run().info.run_id)
         mlflow.log_artifact(
-            Path(args.model_dir) / (args.name + "_run-" + str(args.seed) + ".model"),
+            Path(args.model_dir) / (args.name + ".model"),
             )
         mlflow.end_run()
     logging.info("Done")
