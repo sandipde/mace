@@ -502,10 +502,12 @@ def main() -> None:
             name=args.mlflow_name,
             uri=args.mlflow_uri,
         )
-        with mlflow.start_run(experiment_id=expt_id, nested=True):
-            for key in args.mlflow_log_hypers:
-                mlflow.log_param(key, args_dict[key])
-            mlflow.log_param("params", args_dict_json)
+        run_expt=mlflow.start_run(experiment_id=expt_id, nested=True):
+        for key in args.mlflow_log_hypers:
+            mlflow.log_param(key, args_dict[key])
+        mlflow.log_param("params", args_dict_json)
+        mlflow.log_artifact(Path(args.model_dir) / (args.name + ".model"))
+        mlflow.end_run()
 
     tools.train(
         model=model,
@@ -591,7 +593,7 @@ def main() -> None:
         run_id = run_data.iloc[0]["run_id"]
         mlflow.log_artifact(
             local_path=Path(args.model_dir) / (args.name + ".model"), 
-            artifact_path="http://10.2.29.160:5055/#/experiments/"+str(expt_id)+"/runs/"+str(run_id)+"/artifacts",
+            artifact_path="http://10.2.29.160:5055/#/experiments/"+str(expt_id)+"/runs/"+str(run_id),
             )
     logging.info("Done")
 
