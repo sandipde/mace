@@ -15,14 +15,13 @@ import torch.nn.functional
 from e3nn import o3
 from torch.optim.swa_utils import SWALR, AveragedModel
 from torch_ema import ExponentialMovingAverage
-import mlflow
+
 import mace
 from mace import data, modules, tools
-from mace.tools import torch_geometric
 
-import mlflow
+from mace.tools import torch_geometric, load_foundations
 import json
-from mlflow.tracking import MlflowClient
+
 
 from mace.tools.scripts_utils import (
     LRScheduler,
@@ -337,6 +336,26 @@ def main() -> None:
     else:
         raise RuntimeError(f"Unknown model: '{args.model}'")
 
+    if args.foundation_model is not None:
+        if args.foundation_model == "use_mp":
+            args.foundation_model = (
+                Path(__file__).parent.parent
+                / "calculators"
+                / "foundations_models"
+                / "2023-08-14-mace-universal.model"
+            )
+        logging.info(
+            f"Using foundation model as initial checkpoint from path : {args.foundation_model}"
+        )
+        model_path = Path(args.foundation_model)
+        model_foundation = torch.load(model_path, map_location=device)
+        model = load_foundations(
+            model,
+            model_foundation,
+            z_table,
+            load_readout=True,
+            max_L=args.max_L,
+        )
     model.to(device)
 
     # Optimizer
