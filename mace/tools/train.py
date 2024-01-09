@@ -195,11 +195,11 @@ def train(
             if log_mlflow:
                 import mlflow
                 mlflow_log_dict = {
+                    "epoch": epoch,
                     "valid_loss": valid_loss,
                     "valid_rmse_e_per_atom": eval_metrics["rmse_e_per_atom"],
                     "valid_rmse_f": eval_metrics["rmse_f"],
                 }
-                #mlflow.log_params({"epoch": epoch})
                 mlflow.log_metrics(mlflow_log_dict, step=epoch)
 
             if valid_loss >= lowest_loss:
