@@ -493,23 +493,19 @@ def main() -> None:
 
     if args.mlflow:
         import mlflow
-        with mlflow.start_run():
-            logging.info("Using mlflow for logging")
-            args_dict = vars(args)
-            args_dict_json = json.dumps(args_dict)
-            tools.init_mlflow(
-                project=args.mlflow_project,
-                entity=args.mlflow_entity,
-                name=args.mlflow_name,
-                uri=args.mlflow_uri,
-            )
+        logging.info("Using mlflow for logging")
+        args_dict = vars(args)
+        args_dict_json = json.dumps(args_dict)
+        expt_id=tools.init_mlflow(
+            project=args.mlflow_project,
+            entity=args.mlflow_entity,
+            name=args.mlflow_name,
+            uri=args.mlflow_uri,
+        )
+        with mlflow.start_run(experiment_id=expt_id, nested=True):
             for key in args.mlflow_log_hypers:
                 mlflow.log_param(key, args_dict[key])
             mlflow.log_param("params", args_dict_json)
-            run_id = mlflow.active_run().info.run_id
-            print(run_id)
-            mlflow.log_param("run_id", run_id)
-
 
     tools.train(
         model=model,
@@ -583,7 +579,20 @@ def main() -> None:
         else:
             torch.save(model, Path(args.model_dir) / (args.name + ".model"))
     if args.mlflow:
-        mlflow.log_artifact(Path(args.model_dir) / (args.name + ".model"))
+        expt_id=tools.init_mlflow(
+            project=args.mlflow_project,
+            entity=args.mlflow_entity,
+            name=args.mlflow_name,
+            uri=args.mlflow_uri,
+        )
+        #with mlflow.start_run(experiment_id=expt_id, nested=True):
+        #    mlflow.log_artifact(Path(args.model_dir) / (args.name + ".model"))
+        run_data = mlflow.search_runs(experiment_ids=[expt_id], run_view_type=mlflow.entities.ViewType.ACTIVE_ONLY, max_results=1)
+        run_id = run_data.iloc[0]["run_id"]
+        mlflow.log_artifact(
+            local_path=Path(args.model_dir) / (args.name + ".model"), 
+            artifact_path="http://10.2.29.160:5055/#/experiments/"+str(expt_id)+"/runs/"+str(run_id)+"/artifacts",
+            )
     logging.info("Done")
 
 
