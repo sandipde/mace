@@ -11,6 +11,7 @@ from typing import Any, Dict, Optional, Tuple
 
 import numpy as np
 import torch
+import mlflow
 from torch.optim.swa_utils import SWALR, AveragedModel
 from torch.utils.data import DataLoader
 from torch_ema import ExponentialMovingAverage
@@ -55,6 +56,7 @@ def train(
     swa: Optional[SWAContainer] = None,
     ema: Optional[ExponentialMovingAverage] = None,
     max_grad_norm: Optional[float] = 10.0,
+    log_mlflow: bool = True,
     log_wandb: bool = False,
 ):
     lowest_loss = np.inf
@@ -64,7 +66,7 @@ def train(
     keep_last = False
     if log_wandb:
         import wandb
-
+  
     if max_grad_norm is not None:
         logging.info(f"Using gradient clipping with tolerance={max_grad_norm:.3f}")
     logging.info("Started training")
@@ -189,6 +191,17 @@ def train(
                     "valid_rmse_f": eval_metrics["rmse_f"],
                 }
                 wandb.log(wandb_log_dict)
+
+            if log_mlflow:
+                import mlflow
+                mlflow_log_dict = {
+                    "epoch": epoch,
+                    "valid_loss": valid_loss,
+                    "valid_rmse_e_per_atom": eval_metrics["rmse_e_per_atom"],
+                    "valid_rmse_f": eval_metrics["rmse_f"],
+                }
+                mlflow.log_metrics(mlflow_log_dict, step=epoch)
+
             if valid_loss >= lowest_loss:
                 patience_counter += 1
                 if swa is not None:

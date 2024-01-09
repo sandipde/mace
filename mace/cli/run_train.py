@@ -18,7 +18,11 @@ from torch_ema import ExponentialMovingAverage
 
 import mace
 from mace import data, modules, tools
+
 from mace.tools import torch_geometric, load_foundations
+import json
+
+
 from mace.tools.scripts_utils import (
     LRScheduler,
     create_error_table,
@@ -29,7 +33,6 @@ from mace.tools.scripts_utils import (
 def main() -> None:
     args = tools.build_default_arg_parser().parse_args()
     tag = tools.get_tag(name=args.name, seed=args.seed)
-
     # Setup
     tools.set_seeds(args.seed)
     tools.setup_logger(level=args.log_level, tag=tag, directory=args.log_dir)
@@ -507,6 +510,22 @@ def main() -> None:
         )
         wandb.run.summary["params"] = args_dict_json
 
+    if args.mlflow:
+        import mlflow
+        logging.info("Using mlflow for logging")
+        args_dict = vars(args)
+        args_dict_json = json.dumps(args_dict)
+        expt=tools.init_mlflow(
+            project=args.mlflow_project,
+            entity=args.mlflow_entity,
+            name=args.mlflow_name,
+            uri=args.mlflow_uri,
+        )
+        #with mlflow.start_run(experiment_id=expt.experiment_id, nested=True):
+        for key in args.mlflow_log_hypers:
+            mlflow.log_param(key, args_dict[key])
+        mlflow.log_param("params", args_dict_json)
+
     tools.train(
         model=model,
         loss_fn=loss_fn,
@@ -526,6 +545,7 @@ def main() -> None:
         ema=ema,
         max_grad_norm=args.clip_grad,
         log_errors=args.error_table,
+        log_mlflow=args.mlflow,
         log_wandb=args.wandb,
     )
 
@@ -557,6 +577,7 @@ def main() -> None:
             model=model,
             loss_fn=loss_fn,
             output_args=output_args,
+            log_mlflow=args.mlflow,
             log_wandb=args.wandb,
             device=device,
         )
@@ -576,7 +597,11 @@ def main() -> None:
             torch.save(model, Path(args.model_dir) / (args.name + "_swa.model"))
         else:
             torch.save(model, Path(args.model_dir) / (args.name + ".model"))
-
+    if args.mlflow:
+        print(mlflow.active_run().info.run_id)
+        mlflow.log_artifact(
+            Path(args.model_dir) / (args.name + "_run-" + str(args.seed) + ".model"),
+            )
     logging.info("Done")
 
 
