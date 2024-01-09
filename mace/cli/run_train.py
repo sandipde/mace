@@ -493,27 +493,19 @@ def main() -> None:
 
     if args.mlflow:
         import mlflow
-        #with mlflow.start_run():
         logging.info("Using mlflow for logging")
         args_dict = vars(args)
         args_dict_json = json.dumps(args_dict)
-
-        mlflow.set_experiment(args.mlflow_project)
-        experiment = mlflow.get_experiment_by_name(args.mlflow_project)
-        client = MlflowClient()
-        run = client.create_run(experiment.experiment_id)
-        run_id = run.info.run_id
-        run = mlflow.start_run(run_id = run_id)
-        # tools.init_mlflow(
-        #     project=,
-        #     entity=args.mlflow_entity,
-        #     name=args.mlflow_name,
-        #     uri=args.mlflow_uri,
-        # )
-        for key in args.mlflow_log_hypers:
-            mlflow.log_param(key, args_dict[key])
-        mlflow.log_param("params", args_dict_json)
-        mlflow.end_run()
+        expt_id=tools.init_mlflow(
+            project=args.mlflow_project,
+            entity=args.mlflow_entity,
+            name=args.mlflow_name,
+            uri=args.mlflow_uri,
+        )
+        with mlflow.start_run(experiment_id=expt_id, nested=True):
+            for key in args.mlflow_log_hypers:
+                mlflow.log_param(key, args_dict[key])
+            mlflow.log_param("params", args_dict_json)
 
     tools.train(
         model=model,
@@ -587,7 +579,20 @@ def main() -> None:
         else:
             torch.save(model, Path(args.model_dir) / (args.name + ".model"))
     if args.mlflow:
-        mlflow.log_artifact(Path(args.model_dir) / (args.name + ".model"))
+        expt_id=tools.init_mlflow(
+            project=args.mlflow_project,
+            entity=args.mlflow_entity,
+            name=args.mlflow_name,
+            uri=args.mlflow_uri,
+        )
+        #with mlflow.start_run(experiment_id=expt_id, nested=True):
+        #    mlflow.log_artifact(Path(args.model_dir) / (args.name + ".model"))
+        run_data = mlflow.search_runs(experiment_ids=[expt_id], run_view_type=mlflow.entities.ViewType.ACTIVE_ONLY, max_results=1)
+        run_id = run_data.iloc[0]["run_id"]
+        mlflow.log_artifact(
+            local_path=Path(args.model_dir) / (args.name + ".model"), 
+            artifact_path="http://10.2.29.160:5055/#/experiments/"+str(expt_id)+"/runs/"+str(run_id)+"/artifacts",
+            )
     logging.info("Done")
 
 

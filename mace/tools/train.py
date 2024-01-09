@@ -200,7 +200,7 @@ def train(
                     "valid_rmse_f": eval_metrics["rmse_f"],
                 }
                 #mlflow.log_params({"epoch": epoch})
-                mlflow.log_metrics(mlflow_log_dict)
+                mlflow.log_metrics(mlflow_log_dict, step=epoch)
 
             if valid_loss >= lowest_loss:
                 patience_counter += 1
