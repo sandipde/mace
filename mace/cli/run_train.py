@@ -600,9 +600,11 @@ def main() -> None:
             torch.save(model, Path(args.model_dir) / (args.name + ".model"))
     if args.mlflow:
         print(mlflow.active_run().info.run_id)
-        mlflow.log_artifact(
-            Path(args.model_dir) / (args.name + ".model"),
-            )
+        if swa_eval:
+            mlflow.log_artifact( Path(args.model_dir) / (args.name + "_swa.model"))
+        else:
+            mlflow.log_artifact(model, Path(args.model_dir) / (args.name + ".model"))
+            
         mlflow.end_run()
     logging.info("Done")
 
