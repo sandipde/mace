@@ -603,6 +603,7 @@ def main() -> None:
         mlflow.log_artifact(
             Path(args.model_dir) / (args.name + "_run-" + str(args.seed) + ".model"),
             )
+        mlflow.end_run()
     logging.info("Done")
 
 
