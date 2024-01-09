@@ -137,5 +137,5 @@ def init_mlflow(project: str, entity: str, name: str, uri: str):
     mlflow.set_tag("entity", entity)
     mlflow.set_tag("name", name)
 
-    return experiment.experiment_id
+    return experiment
     
