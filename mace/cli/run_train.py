@@ -523,9 +523,9 @@ def main() -> None:
         )
         #with mlflow.start_run(experiment_id=expt.experiment_id, nested=True):
         #for key in args.mlflow_log_hypers:
-        mlflow.log_params(args_dict)
             #mlflow.log_param(key, args_dict[key])
         #mlflow.log_param("params", args_dict_json)
+        mlflow.log_params(args_dict)
 
     tools.train(
         model=model,
