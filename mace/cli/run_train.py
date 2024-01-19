@@ -603,7 +603,7 @@ def main() -> None:
     if args.mlflow:
         print(mlflow.active_run().info.run_id)
         if swa_eval:
-            mlflow.pytorch.log_model(model, "swa_model")
+            mlflow.pytorch.log_model(model, "swa_model", pip_requirements=["-r requirements.txt"])
         else:
             mlflow.pytorch.log_model(model, "model")
 
