@@ -7,6 +7,7 @@
 import ast
 import json
 import logging
+import ase
 from pathlib import Path
 from typing import Optional
 
@@ -598,17 +599,19 @@ def main() -> None:
             torch.save(model, Path(args.model_dir) / (args.name + "_swa.model"))
         else:
             torch.save(model, Path(args.model_dir) / (args.name + ".model"))
+
     if args.mlflow:
         print(mlflow.active_run().info.run_id)
-        # if swa_eval:
-        #     mlflow.log_artifact(Path(args.model_dir) / (args.name + "_swa.model"))
-        # else:
-        #     mlflow.log_artifact(Path(args.model_dir) / (args.name + ".model"))
         if swa_eval:
             mlflow.pytorch.log_model(model, "swa_model")
         else:
             mlflow.pytorch.log_model(model, "model")
-            
+
+        if args.register_model_name:
+            mlflow.register_model(
+                f"runs:/{mlflow.active_run().info.run_id}/model",
+                args.register_model_name,
+            )  
         mlflow.end_run()
     logging.info("Done")
 

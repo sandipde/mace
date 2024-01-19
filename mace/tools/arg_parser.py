@@ -516,6 +516,12 @@ def build_default_arg_parser() -> argparse.ArgumentParser:
         default="mace_test",
     )
     parser.add_argument(
+        "--register_model_name",
+        help="Model name to register in MLFlow",
+        type=str,
+        default=None,
+    )
+    parser.add_argument(
         "--mlflow_entity",
         help="MLFlow entity name",
         type=str,
