@@ -559,6 +559,14 @@ def build_default_arg_parser() -> argparse.ArgumentParser:
             "forces_weight",
         ],
     )
+    parser.add_argument(
+        "--env_file",
+        help="Path to environment file",
+        type=str,
+        default="./requirements.txt",
+    )
+
+
     return parser
 
 
