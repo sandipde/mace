@@ -515,18 +515,38 @@ def main() -> None:
         import mlflow
         logging.info("Using mlflow for logging")
         args_dict = vars(args)
+        ## Hash the params and log for matching in future
+        param_hash=tools.dict_hash(args_dict)
+        args_dict["param_hash"]=param_hash
+        #print(param_hash)
+
         args_dict_json = json.dumps(args_dict)
+
         expt=tools.init_mlflow(
             project=args.mlflow_project,
-            entity=args.mlflow_entity,
-            name=args.mlflow_name,
+            #entity=args.mlflow_entity,
+            #name=args.mlflow_name,
             uri=args.mlflow_uri,
         )
-        #with mlflow.start_run(experiment_id=expt.experiment_id, nested=True):
-        #for key in args.mlflow_log_hypers:
-            #mlflow.log_param(key, args_dict[key])
-        #mlflow.log_param("params", args_dict_json)
-        mlflow.log_params(args_dict)
+
+        ## Check for existing run with same params using the hash paramter value
+        
+        filter_string = "params.param_hash = '{}'".format(param_hash) 
+        #print(expt.experiment_id)
+        runs = mlflow.search_runs(experiment_names=[args.mlflow_project], filter_string=filter_string)
+        run_ids=[run[1].run_id for run in runs.iterrows()]
+        #print(run_ids)
+        if len(run_ids)>0:
+            logging.info(f"Found {len(run_ids)} runs with same params, using latest run")
+            run_id=run_ids[-1]
+            mlflow.start_run(experiment_id=expt.experiment_id, run_id=run_id)
+            logging.info(f"Continuing run with id {run_id} in experiment {expt.name}")
+        else:
+            mlflow.start_run(experiment_id=expt.experiment_id)
+            logging.info("No previous runs found with same params, starting new run")
+
+        mlflow.log_params(args_dict)    
+            
 
     tools.train(
         model=model,
@@ -601,11 +621,13 @@ def main() -> None:
             torch.save(model, Path(args.model_dir) / (args.name + ".model"))
 
     if args.mlflow:
-        print(mlflow.active_run().info.run_id)
+        #print(mlflow.active_run().info.run_id)
+        required_packages=tools.package_list()
         if swa_eval:
-            mlflow.pytorch.log_model(model, "swa_model", pip_requirements=args.env_file)
+            #mlflow.pytorch.log_model(model, "swa_model", pip_requirements=args.env_file)
+            mlflow.pytorch.log_model(model, "swa_model", pip_requirements=required_packages)
         else:
-            mlflow.pytorch.log_model(model, "model")
+            mlflow.pytorch.log_model(model, "model", pip_requirements=required_packages)
 
         if args.register_model_name:
             mlflow.register_model(
