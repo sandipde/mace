@@ -227,9 +227,8 @@ def train(
                             keep_last=keep_last,
                         )
                         keep_last = False
-                        if log_mlflow:
-                            #mlflow.pytorch.log_state_dict(model.state_dict, str(epoch)+"_checkpoint")
-                            mlflow.log_artifact(checkpoints_dir)
+                        #if log_mlflow:
+                        #    mlflow.log_artifact(checkpoints_dir)
                 else:
                     checkpoint_handler.save(
                         state=CheckpointState(model, optimizer, lr_scheduler),
@@ -237,9 +236,8 @@ def train(
                         keep_last=keep_last,
                     )
                     keep_last = False
-                    if log_mlflow:
-                        #mlflow.pytorch.log_state_dict(model.state_dict, str(epoch)+"_checkpoint")
-                        mlflow.log_artifact(checkpoints_dir)
+                    #if log_mlflow:
+                    #    mlflow.log_artifact(checkpoints_dir)
         epoch += 1
 
     logging.info("Training complete")

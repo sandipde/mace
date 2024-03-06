@@ -515,11 +515,6 @@ def main() -> None:
         import mlflow
         logging.info("Using mlflow for logging")
         args_dict = vars(args)
-        ## Hash the params and log for matching in future
-        param_hash=tools.dict_hash(args_dict)
-        args_dict["param_hash"]=param_hash
-        #print(param_hash)
-
         args_dict_json = json.dumps(args_dict)
 
         expt=tools.init_mlflow(
@@ -615,6 +610,7 @@ def main() -> None:
             registered_model_name=args.register_model_name
         )
         mlflow.log_artifact(args.log_dir)
+        mlflow.log_artifact(args.checkpoints_dir)
         mlflow.log_artifact(args.results_dir)
         mlflow.end_run()
     logging.info("Done")
