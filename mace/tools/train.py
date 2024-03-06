@@ -17,7 +17,7 @@ from torch.utils.data import DataLoader
 from torch_ema import ExponentialMovingAverage
 
 from . import torch_geometric
-from .checkpoint import CheckpointHandler, CheckpointState
+from .checkpoint import CheckpointHandler, CheckpointState, CheckpointBuilder
 from .torch_tools import tensor_dict_to_device, to_numpy
 from .utils import (
     MetricsLogger,
@@ -53,12 +53,13 @@ def train(
     output_args: Dict[str, bool],
     device: torch.device,
     log_errors: str,
+    checkpoints_dir: str,
     swa: Optional[SWAContainer] = None,
     ema: Optional[ExponentialMovingAverage] = None,
     max_grad_norm: Optional[float] = 10.0,
     log_mlflow: bool = True,
     log_wandb: bool = False,
-):
+    ):
     lowest_loss = np.inf
     valid_loss = np.inf
     patience_counter = 0
@@ -226,6 +227,9 @@ def train(
                             keep_last=keep_last,
                         )
                         keep_last = False
+                        if log_mlflow:
+                            #mlflow.pytorch.log_state_dict(model.state_dict, str(epoch)+"_checkpoint")
+                            mlflow.log_artifact(checkpoints_dir)
                 else:
                     checkpoint_handler.save(
                         state=CheckpointState(model, optimizer, lr_scheduler),
@@ -233,6 +237,9 @@ def train(
                         keep_last=keep_last,
                     )
                     keep_last = False
+                    if log_mlflow:
+                        #mlflow.pytorch.log_state_dict(model.state_dict, str(epoch)+"_checkpoint")
+                        mlflow.log_artifact(checkpoints_dir)
         epoch += 1
 
     logging.info("Training complete")

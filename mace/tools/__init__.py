@@ -16,6 +16,7 @@ from .torch_tools import (
     voigt_to_matrix,
 )
 from .train import SWAContainer, evaluate, train
+from .hash import dict_hash, package_list, check_hash
 from .utils import (
     AtomicNumberTable,
     MetricsLogger,
@@ -68,5 +69,8 @@ __all__ = [
     "init_wandb",
     "init_mlflow",
     "load_foundations",
+    "dict_hash",
+    "package_list",
+    "check_hash",
 
 ]

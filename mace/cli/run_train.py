@@ -7,6 +7,7 @@
 import ast
 import json
 import logging
+import ase
 from pathlib import Path
 from typing import Optional
 
@@ -515,17 +516,16 @@ def main() -> None:
         logging.info("Using mlflow for logging")
         args_dict = vars(args)
         args_dict_json = json.dumps(args_dict)
+
         expt=tools.init_mlflow(
             project=args.mlflow_project,
-            entity=args.mlflow_entity,
-            name=args.mlflow_name,
+            #entity=args.mlflow_entity,
+            #name=args.mlflow_name,
             uri=args.mlflow_uri,
         )
-        #with mlflow.start_run(experiment_id=expt.experiment_id, nested=True):
-        #for key in args.mlflow_log_hypers:
-            #mlflow.log_param(key, args_dict[key])
-        #mlflow.log_param("params", args_dict_json)
-        mlflow.log_params(args_dict)
+
+        tools.check_hash(args_dict, expt)
+            
 
     tools.train(
         model=model,
@@ -548,6 +548,7 @@ def main() -> None:
         log_errors=args.error_table,
         log_mlflow=args.mlflow,
         log_wandb=args.wandb,
+        checkpoints_dir=args.checkpoints_dir,
     )
 
     # Evaluation on test datasets
@@ -598,17 +599,18 @@ def main() -> None:
             torch.save(model, Path(args.model_dir) / (args.name + "_swa.model"))
         else:
             torch.save(model, Path(args.model_dir) / (args.name + ".model"))
+
     if args.mlflow:
-        print(mlflow.active_run().info.run_id)
-        # if swa_eval:
-        #     mlflow.log_artifact(Path(args.model_dir) / (args.name + "_swa.model"))
-        # else:
-        #     mlflow.log_artifact(Path(args.model_dir) / (args.name + ".model"))
+        required_packages=tools.package_list()
         if swa_eval:
-            mlflow.pytorch.log_model(model, "swa_model")
-        else:
-            mlflow.pytorch.log_model(model, "model")
-            
+            mlflow.pytorch.log_model(model, "swa_model", pip_requirements=required_packages)
+        mlflow.pytorch.log_model(
+            model, "model", 
+            pip_requirements=required_packages, 
+            registered_model_name=args.register_model_name
+        )
+        mlflow.log_artifact(args.log_dir)
+        mlflow.log_artifact(args.results_dir)
         mlflow.end_run()
     logging.info("Done")
 
