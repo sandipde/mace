@@ -8,6 +8,8 @@ import ast
 import json
 import logging
 import ase
+import os
+import glob
 from pathlib import Path
 from typing import Optional
 
@@ -609,9 +611,11 @@ def main() -> None:
             pip_requirements=required_packages, 
             registered_model_name=args.register_model_name
         )
-        mlflow.log_artifact(args.log_dir)
-        mlflow.log_artifact(args.checkpoints_dir)
-        mlflow.log_artifact(args.results_dir)
+        mlflow.log_artifact(os.path.join(args.log_dir, tag+".log"), "logs")
+        checkpoint_files = glob.glob(os.path.join(args.checkpoints_dir, tag+"*"))
+        for file in checkpoint_files:
+            mlflow.log_artifact(file, "checkpoints")
+        mlflow.log_artifact(os.path.join(args.results_dir, tag+"_train.txt"), "results")
         mlflow.end_run()
     logging.info("Done")
 
