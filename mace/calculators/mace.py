@@ -18,6 +18,8 @@ from mace import data
 from mace.modules.utils import extract_invariant
 from mace.tools import torch_geometric, torch_tools, utils
 
+import mlflow
+import mlflow.pytorch
 
 class MACECalculator(Calculator):
     """MACE ASE Calculator
@@ -98,10 +100,15 @@ class MACECalculator(Calculator):
                 )
             elif model_type == "DipoleMACE":
                 self.implemented_properties.extend(["dipole_var"])
+        try:
+            self.models = [
+                    mlflow.pytorch.load_model(model_path) for model_path in model_paths
+                    ]
+        else:
+            self.models = [
+                    torch.load(f=model_path, map_location=device) for model_path in model_paths
+                    ]
 
-        self.models = [
-            torch.load(f=model_path, map_location=device) for model_path in model_paths
-        ]
         for model in self.models:
             model.to(device)  # shouldn't be necessary but seems to help with GPU
         r_maxs = [model.r_max.cpu() for model in self.models]
