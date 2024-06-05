@@ -104,7 +104,7 @@ class MACECalculator(Calculator):
             self.models = [
                     mlflow.pytorch.load_model(model_path) for model_path in model_paths
                     ]
-        else:
+        except:
             self.models = [
                     torch.load(f=model_path, map_location=device) for model_path in model_paths
                     ]
