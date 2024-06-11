@@ -47,6 +47,7 @@ def train(
     start_epoch: int,
     max_num_epochs: int,
     patience: int,
+    checkpoints_dir: str,
     checkpoint_handler: CheckpointHandler,
     logger: MetricsLogger,
     eval_interval: int,
